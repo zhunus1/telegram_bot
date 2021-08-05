@@ -14,21 +14,29 @@ from functions import (
 
 bot = telebot.TeleBot(config.TOKEN)
 
+#Приветствие бота
 @bot.message_handler(commands=['start', 'help'])
 def welcome(message):
     bot.reply_to(message, f'Я Доктор Гретта. Приятно познакомиться с вами, {message.from_user.first_name}')
     bot.reply_to(message, f'Отправьте мне название лекарства и я предоставлю вам его аналоги.')
 
 
+#Принимаем ответ от юзера
 @bot.message_handler(content_types=['text'])
 def get_text_messages(message):
     if message.text.lower():
         results = search_drug(message.text.lower())
         if len(results) == 0:
-            bot.send_message(message.from_user.id, 'К сожалению в базе отсутсвует данное лекарство.')
+            bot.send_message(message.from_user.id, 'К сожалению в базе отсутствуют данные касательно данного препарата.')
+            bot.send_message(message.from_user.id, 'Попробуйте повторить поиск по другому названию')
         else:
             pagination = DrugPaginationModel(results, 4)
             reply_markup = create_menu(pagination.page_items, 'name', 'id')
+
+            image_url = get_image(results[0]['imageName'])
+            bot.send_photo(message.from_user.id, image_url)
+            bot.send_message(message.from_user.id, '*Название: %s*' % results[0]['name'], parse_mode="Markdown")
+            bot.send_message(message.from_user.id, '*Цена: %s*' % results[0]['price'], parse_mode="Markdown")
             load_more = types.InlineKeyboardButton("Загрузи больше", callback_data = "%s,%s,%s" % (message.text.lower(), "load_more", str(pagination.current_page_number)))
             reply_markup.add(load_more)
             bot.send_message(message.from_user.id, 'Результаты поиска: %s' % message.text, reply_markup=reply_markup)
@@ -71,15 +79,21 @@ def callback_inline(call):
             else:
                 bot.send_message(call.message.chat.id, 'Больше нет данных')
         else:#Проверка если это кнопка параметра
-            results, drug_id = get_param(call.data)
+            results, drug_id, drug_name = get_param(call.data)
             button_list = []
             markup = types.InlineKeyboardMarkup(row_width=2)
             if isinstance(results, list):#проверка если кликнули аналоги
-                reply_markup = create_menu(results, 'name', 'id')
-                bot.send_message(call.message.chat.id, 'Подробная информация', reply_markup=reply_markup)
+                pagination = DrugPaginationModel(results, 4)
+                reply_markup = create_menu(pagination.page_items, 'name', 'id')
+
+                load_more = types.InlineKeyboardButton("Загрузи больше", callback_data = "%s,%s,%s" % (drug_name, "load_more", str(pagination.current_page_number)))
+                reply_markup.add(load_more)
+
+                bot.send_message(call.message.chat.id, 'Список аналогов', reply_markup=reply_markup)
             else:
                 bot.send_message(call.message.chat.id, results)
             #Также нужно уловить случай с аналогом
+
 
     except Exception as e:
         print(repr(e))

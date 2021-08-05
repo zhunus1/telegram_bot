@@ -106,6 +106,7 @@ def drug_detailed_data_clean(data):
             data[key] = "Данные отсутсвуют"
 
     clean_data = {
+        'Название': data['name'],
         'Субстанция': data['activeSubstance'],
         'Форма дозы': data['dosageForm'],
         'Страна изготовитель': data['producingCountry'],
@@ -124,7 +125,7 @@ def get_param(list):
     params = list.split(',')
     data = drug_detailed(params[1])
     clean_data = drug_detailed_data_clean(data)
-    return clean_data[params[0]], params[1]
+    return clean_data[params[0]], params[1], clean_data['Название']
 
 
 def get_image(image_name):
